@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/programisto-labs/endurance/compare/v1.0.1...v1.0.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* fix mcp output ([7173063](https://github.com/programisto-labs/endurance/commit/7173063d9f8b7d68341231ba0e26620d2258b61f))
+
 ## [1.0.1](https://github.com/programisto-labs/endurance/compare/v1.0.0...v1.0.1) (2025-11-20)
 
 

@@ -9,6 +9,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
+import { fileURLToPath } from 'url';
 import { registerTools } from './tools/index.js';
 import { registerResources } from './resources/index.js';
 import { registerPrompts } from './prompts/index.js';
@@ -74,16 +75,24 @@ class EnduranceMCPServer {
 
   private setupErrorHandling(): void {
     this.server.onerror = (error) => {
-      console.error('[MCP Error]', error);
+      // Write to stderr to avoid interfering with JSON-RPC protocol on stdout
+      process.stderr.write(`[MCP Error] ${error}\n`);
     };
 
     process.on('SIGINT', async () => {
       await this.server.close();
       process.exit(0);
     });
+
+    process.on('SIGTERM', async () => {
+      await this.server.close();
+      process.exit(0);
+    });
   }
 
   async start(): Promise<void> {
+    // Ensure stdout is available for JSON-RPC protocol only
+    // All logging must go to stderr
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     // Server is now running and listening for requests
@@ -96,10 +105,14 @@ async function main() {
   await server.start();
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run if called directly (check if this file is being executed directly)
+const isMainModule = import.meta.url === `file://${fileURLToPath(process.argv[1] || '')}` ||
+  (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(process.argv[1]));
+
+if (isMainModule) {
   main().catch((error) => {
-    console.error('Failed to start MCP server:', error);
+    // Write to stderr to avoid interfering with JSON-RPC protocol on stdout
+    process.stderr.write(`Failed to start MCP server: ${error}\n`);
     process.exit(1);
   });
 }

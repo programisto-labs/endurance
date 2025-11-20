@@ -9,7 +9,8 @@ export function mcpServerCommand(program: Command): void {
       try {
         await main();
       } catch (error) {
-        console.error('Failed to start MCP server:', error);
+        // Write to stderr to avoid interfering with JSON-RPC protocol on stdout
+        process.stderr.write(`Failed to start MCP server: ${error}\n`);
         process.exit(1);
       }
     });

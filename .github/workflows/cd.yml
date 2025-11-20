@@ -53,14 +53,6 @@ jobs:
           NODE_AUTH_TOKEN: ""
           NPM_CONFIG_USERCONFIG: .npmrc
 
-#      - name: Authenticate GitHub App
-#        id: generate_token
-#        uses: tibdex/github-app-token@v1
-#        with:
-#          app_id: ${{ secrets.GH_APP_ID }}
-#          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-#          installation_id: ${{ secrets.GH_APP_INSTALLATION_ID }}
-
       - name: Semantic Release
         run: |
           if [ "$GITHUB_REF_NAME" = "main" ]; then
@@ -72,37 +64,7 @@ jobs:
             npx semantic-release --dry-run
           fi
         env:
-#          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ""
           NPM_CONFIG_USERCONFIG: .npmrc
-
-      - name: Pull latest main after release
-        if: github.ref_name == 'main'
-        run: git pull origin main
-
-      - name: Create PR main → develop
-        if: github.ref_name == 'main'
-        id: create_pr
-        uses: peter-evans/create-pull-request@v6
-        env:
-          HUSKY_SKIP_COMMIT: 1
-        with:
- #         token: ${{ steps.generate_token.outputs.token }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          base: develop
-          branch: release/main-to-develop
-          title: 'chore: sync main → develop post-release'
-          body: 'This PR syncs the release commit from main to develop.'
-
-      - name: Enable auto-merge
-        if: github.ref_name == 'main'
-        uses: peter-evans/enable-pull-request-automerge@v2
-        env:
-          HUSKY_SKIP_COMMIT: 1
-        with:
-#          token: ${{ steps.generate_token.outputs.token }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
-          merge-method: squash

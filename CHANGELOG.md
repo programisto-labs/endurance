@@ -1,3 +1,15 @@
+# 1.0.0 (2025-11-20)
+
+
+### Features
+
+* migration du repo ([8bd5d10](https://github.com/programisto-labs/endurance/commit/8bd5d10e823fe03d7578931624f4fc729725e230))
+
+
+### BREAKING CHANGES
+
+* new version
+
 ## [1.1.12](https://github.com/programisto-labs/endurance-core/compare/v1.1.11...v1.1.12) (2025-10-07)
 
 

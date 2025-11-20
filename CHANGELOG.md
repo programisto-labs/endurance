@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/programisto-labs/endurance/compare/v1.0.0...v1.0.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* clean CI ([b7aed00](https://github.com/programisto-labs/endurance/commit/b7aed0011fba9fe743d04dfe1b55ac40ef4d9fe7))
+
 # 1.0.0 (2025-11-20)
 
 

@@ -1,143 +1,301 @@
-[EnduranceJS](https://endurancejs.com/)
-# Endurance Framework
+# Endurance Core
 
-## Overview
+A modular and extensible TypeScript library for building secure, event-driven, Express-based backend systems — with support for authentication, routing, file uploads, Kafka/AMQP consumers, cron tasks, notifications, and Swagger documentation.
 
-The Endurance Framework is a highly modular and scalable Node.js project template built on Express.js. It is designed to dynamically load and manage independent modules, making it extremely easy to develop, extend, and maintain web applications. The goal is to create a library of ready-made modules (e.g., login, user management, etc.) that can be easily integrated into any project.
+## Installation
 
-## Features
-
-- **Dynamic Module Loading**: Easily add new modules with their own models and routes, and they will be automatically loaded and exposed by the application.
-- **Express.js**: Fast, unopinionated, minimalist web framework for Node.js.
-- **Modular Structure**: Each module is independent, promoting separation of concerns and better maintainability.
-- **Modules marketplace**: Uses npm packages starting with "EDRM-" to quickly add features to your API. 
-- **Lib assets**: Include everything your need to start creating a robust API : events management, CRON, swagger, API versioning, webhooks etc.
+yarn add endurance-core
+# or
+npm install endurance-core
 
 ## Getting Started
 
-### Prerequisites
+Import and initialize only the components you need. The library is modular and works well with Express, Mongoose/Typegoose, and event-driven architectures.
 
-- Node.js (v20.x)
-- MongoDB (optional for session management and data management)
+## Usage Examples
+
+### Authentication Middleware
+
+```
+import {
+  EnduranceAuthMiddleware,
+  EnduranceAccessControl,
+  EnduranceAuth
+} from 'endurance-core';
+
+class MyAccessControl extends EnduranceAccessControl {
+  // Implement your access control logic here
+}
+
+class MyAuth extends EnduranceAuth {
+  // Implement your authentication logic here
+}
+
+const middleware = new EnduranceAuthMiddleware(
+  new MyAccessControl(),
+  new MyAuth()
+);
+
+EnduranceAuthMiddleware.setInstance(middleware);
+```
+
+### Custom Router
+
+```
+import { EnduranceRouter } from 'endurance-core';
+
+class MyRouter extends EnduranceRouter {
+  protected setupRoutes() {
+    this.get('/hello', {}, async (req, res) => {
+      res.send('Hello World');
+    });
+  }
+}
+```
+
+### Schema with Typegoose
+
+```
+import { EnduranceSchema, EnduranceModelType } from 'endurance-core';
+
+class User extends EnduranceSchema {
+  @EnduranceModelType.prop({ required: true })
+  name!: string;
+}
+
+const UserModel = User.getModel();
+```
+
+### Kafka or AMQP Consumers
+
+```
+import { enduranceConsumer } from 'endurance-core';
+
+await enduranceConsumer.createConsumer('kafka', {
+  brokers: ['localhost:9092'],
+  groupId: 'group',
+  topic: 'my-topic',
+}, message => {
+  console.log('Received message:', message);
+});
+```
+
+### Cron Jobs
+
+```
+import { enduranceCron } from 'endurance-core';
+
+enduranceCron.loadCronJob('cacheClear', '0 * * * *', async () => {
+  console.log('Clearing cache...');
+});
+```
+
+### Event Emitters and Listeners
+
+```
+import {
+  enduranceEmitter,
+  enduranceListener,
+  enduranceEventTypes
+} from 'endurance-core';
+
+enduranceListener.createListener('MY_EVENT', data => {
+  console.log('Received:', data);
+});
+
+enduranceEmitter.emit(enduranceEventTypes.MY_EVENT, { hello: 'world' });
+```
+
+### Notifications
+
+```
+import { enduranceNotificationManager } from 'endurance-core';
+
+enduranceNotificationManager.registerNotification('email', (opts) => {
+  console.log('Sending email with:', opts);
+});
+
+enduranceNotificationManager.sendNotification('email', {
+  to: 'user@example.com',
+  subject: 'Welcome!',
+});
+```
+
+### Swagger Integration
+
+```
+import express from 'express';
+import { enduranceSwagger } from 'endurance-core';
+
+const app = express();
+
+const spec = await enduranceSwagger.generateSwaggerSpec(['./routes/*.ts']);
+enduranceSwagger.setupSwagger(app, spec);
+```
+
+## Project Structure
+
+```
+src/
+├── core/        # Authentication, Routing, Schema, Event system, etc.
+├── infra/       # Cron jobs, Swagger, DB access
+├── consumers/   # Kafka and AMQP logic
+├── index.ts     # Public API
+```
+
+## CLI Commands
+
+Endurance includes a CLI tool for project management and code generation.
 
 ### Installation
 
-1. Install our CLI:
+After installing `@programisto/endurance`, the CLI is available via `endurance` or `npx endurance`:
 
-    ```sh
-    npm install -g endurance
-    ```
+```bash
+endurance --help
+```
 
-2. Create a project folder and create a new project:
+### Available Commands
 
-    ```sh
-    mkdir newproject
-    cd newproject
+#### Create New Project
 
-    endurance new project
-    ```
+```bash
+endurance new-project
+```
 
-### Usage
+Creates a new Endurance project from a template. Templates are downloaded from GitHub and cached locally.
 
-1. **Start the application**:
+Options:
+- `-t, --template <template>`: Template name (default: `endurance-template`)
+- `-r, --repo <repo>`: GitHub repository URL or owner/repo (default: `programisto-labs/endurance-template`)
+- `--skip-install`: Skip npm/yarn install after project creation
 
-    For development:
+#### Create New Module
 
-    ```sh
-    npm start
-    ```
+```bash
+endurance new-module <moduleName>
+```
 
-    For production:
+Creates a new Endurance module with proper folder structure.
 
-    ```sh
-    npm run prod
-    ```
+Options:
+- `-p, --path <path>`: Path where the module should be created (default: `src/modules`)
+- `-t, --template <template>`: Template name (default: `endurance-template-module`)
+- `-r, --repo <repo>`: GitHub repository URL or owner/repo
 
-2. **Add a new module**:
+Example:
+```bash
+endurance new-module user-management
+```
 
-    To add a new module, create a new folder under the `modules` directory. Each module should contain its own models and routes.
+#### List Events
 
+```bash
+endurance list-events
+```
 
-    ```sh
-    endurance new module
-    ```
+Lists all available events across modules and node_modules. Searches for `emitter.emit()` calls and `enduranceEventTypes` usage.
 
-    Example structure for a new module:
+Options:
+- `-p, --path <path>`: Base path to search (default: current directory)
 
-    ```
-    modules/
-      your-module/
-        listeners/
-          yourListener.listener.js
-        models/
-          YourModel.model.js
-        routes/
-          yourModule.router.js
-    ```
+#### List Environment Variables
 
-3. **Dynamic Module Loading**:
+```bash
+endurance list-env-vars
+```
 
-    The application will automatically load and expose the routes and models from any new module added to the `modules` directory. There is no need for additional configuration.
+Lists all environment variables used across modules and node_modules. Searches for `process.env.*` references.
 
-### Example
+Options:
+- `-p, --path <path>`: Base path to search (default: current directory)
 
-Here is an example of how to add a simple "login" module:
+#### MCP Server
 
-1. **Create the module structure**:
+```bash
+endurance mcp-server
+```
 
-    ```
-    modules/
-      login/
-        models/
-          User.js
-        routes/
-          login.router.js
-    ```
+Starts the Endurance MCP (Model Context Protocol) server for IDE integration (e.g., Cursor).
 
-2. **Define the model (`User.js`)**:
+## MCP Server Integration
 
-    ```javascript
-    const mongoose = require('mongoose');
+The Endurance MCP server allows IDEs like Cursor to understand and use Endurance framework conventions, constraints, and commands.
 
-    const UserSchema = new mongoose.Schema({
-      username: { type: String, required: true },
-      password: { type: String, required: true }
-    });
+### Configuration
 
-    module.exports = mongoose.model('User', UserSchema);
-    ```
+To use the Endurance MCP server in Cursor, add the following to your Cursor configuration (`.cursor/mcp.json` or Cursor settings):
 
-3. **Define the route (`login.router.js`)**:
+```json
+{
+  "mcpServers": {
+    "endurance": {
+      "command": "endurance",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
 
-    ```javascript
-    const router = require('endurance-core/lib/router')();
+Or using the executable directly:
 
-    router.post('/login', (req, res) => {
-      // Your login logic here
-      res.send('Login route');
-    });
+```json
+{
+  "mcpServers": {
+    "endurance": {
+      "command": "endurance-mcp"
+    }
+  }
+}
+```
 
-    module.exports = router;
-    ```
+### Available MCP Tools
 
-### Testing
+The MCP server provides the following tools that can be executed by the AI:
 
-Run tests using Mocha and Supertest:
+- **`create_router`**: Create a new Endurance router with proper structure
+- **`create_schema`**: Create a new Endurance schema (Typegoose model)
+- **`create_module`**: Create a new Endurance module with folder structure
+- **`create_listener`**: Create a new event listener
+- **`create_consumer`**: Create a new Kafka/AMQP consumer
+- **`create_cron`**: Create a new cron job
+- **`create_auth`**: Generate custom authentication classes
+- **`list_events`**: List all available events in the project
+- **`list_env_vars`**: List all environment variables used in the project
 
-    ```sh
-    npm test
-    ```
+### Available MCP Resources
 
-### Roadmap
+The MCP server provides the following resources for documentation:
 
-- **Library of Modules**: Develop a library of ready-made modules (e.g., login, user management) for easy integration.
-- **Enhanced Documentation**: Provide detailed documentation and examples for each module.
-- **Community Contributions**: Encourage community contributions to expand the module library.
+- **`endurance://naming-conventions`**: File naming conventions for Endurance components
+- **`endurance://folder-structure`**: Recommended folder structure for Endurance projects
+- **`endurance://router-documentation`**: Complete documentation for EnduranceRouter
+- **`endurance://schema-documentation`**: Complete documentation for EnduranceSchema
+- **`endurance://auth-documentation`**: Complete documentation for Endurance authentication
+- **`endurance://code-standards`**: Coding standards and ESLint rules
+- **`endurance://patterns`**: Common code patterns and best practices
 
-## Contributing
+### Available MCP Prompts
 
-We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) for more details.
+The MCP server provides prompt templates for:
+
+- **`create-endurance-router`**: Template for creating routers
+- **`create-endurance-schema`**: Template for creating schemas
+- **`create-endurance-module`**: Template for creating modules
+- **`create-endurance-crud`**: Template for creating CRUD operations
+- **`create-endurance-event-driven`**: Template for creating event-driven features
+
+## Scripts
+
+# Run tests
+```yarn test```
+
+# Build the library
+```yarn build```
+
+# Clean build artifacts
+```yarn clean```
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+MIT

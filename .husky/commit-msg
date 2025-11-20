@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+if [ "$HUSKY_SKIP_COMMIT" = "1" ]; then
+  exit 0
+fi
+
+npx --no -- commitlint --edit "$1"

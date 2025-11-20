@@ -1,0 +1,49 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "jest": true,
+    "node": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "module"
+  },
+  "extends": [
+    "standard"
+  ],
+  "plugins": [
+    "@typescript-eslint",
+    "security"
+  ],
+  "rules": {
+    "security/detect-possible-timing-attacks": "warn",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-buffer-noassert": "warn",
+    "security/detect-child-process": "error",
+    "security/detect-disable-mustache-escape": "warn",
+    "security/detect-new-buffer": "warn",
+    "security/detect-non-literal-fs-filename": "off",
+    "security/detect-non-literal-require": "warn",
+    "security/detect-object-injection": "off",
+    "security/detect-unsafe-regex": "warn",
+    "security/detect-non-literal-regexp": "warn",
+    "semi": [
+      "error",
+      "always"
+    ],
+    "indent": "off",
+    "@typescript-eslint/ban-ts-comment": [
+      "error",
+      {
+        "ts-expect-error": "allow-with-description"
+      }
+    ],
+    "space-before-function-paren": "off"
+  },
+  "ignorePatterns": [
+    "dist/"
+  ]
+}

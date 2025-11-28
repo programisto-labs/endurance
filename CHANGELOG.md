@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/programisto-labs/endurance/compare/v1.0.2...v1.0.3) (2025-11-28)
+
+
+### Bug Fixes
+
+* fix scoped servers ([3c204d3](https://github.com/programisto-labs/endurance/commit/3c204d3eddaca458f419974937a2d657fc9f1bf8))
+
 ## [1.0.2](https://github.com/programisto-labs/endurance/compare/v1.0.1...v1.0.2) (2025-11-20)
 
 

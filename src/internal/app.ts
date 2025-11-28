@@ -28,17 +28,14 @@ class EnduranceApp {
     const __filename = fileURLToPath(import.meta.url);
     this.__dirname = path.dirname(__filename);
     this.app = express();
-    this.port = process.env.SERVER_PORT || 3000; // Default port is 3000 if PORT env variable is not set
+    this.port = process.env.SERVER_PORT || 3000;
 
-    // Configuration de multer pour les uploads de fichiers
     const storage = multer.diskStorage({
       destination: (req: Request, file: any, cb: (error: Error | null, destination: string) => void) => {
-        // Trouver le chemin du projet parent (celui qui utilise endurance-core)
         const nodeModulesPath = this.__dirname.split('node_modules')[0];
         const projectRoot = path.dirname(nodeModulesPath);
         const uploadDir = path.join(projectRoot, 'uploads');
 
-        // Créer le dossier s'il n'existe pas
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -47,10 +44,8 @@ class EnduranceApp {
         cb(null, uploadDir);
       },
       filename: (req: Request, file: any, cb: (error: Error | null, filename: string) => void) => {
-        // Garder le nom original du fichier
         const originalName = path.parse(file.originalname).name;
         const ext = path.extname(file.originalname);
-        // Ajouter un suffixe unique à la fin
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const filename = `${originalName}-${uniqueSuffix}${ext}`;
         logger.info('Saving file:', filename);
@@ -61,7 +56,7 @@ class EnduranceApp {
     this.upload = multer({
       storage,
       limits: {
-        fileSize: parseInt(process.env.MAX_FILE_SIZE || '5242880') // 5MB par défaut
+        fileSize: parseInt(process.env.MAX_FILE_SIZE || '5242880')
       }
     });
 
@@ -71,7 +66,6 @@ class EnduranceApp {
 
     const currentFilePath = fileURLToPath(import.meta.url);
     const normalizedPath = currentFilePath.replace(/\\/g, '/');
-    const nodeModulesCount = (normalizedPath.match(/node_modules/g) || []).length;
 
     const forceDirectUsage = process.env.ENDURANCE_DIRECT_USAGE === 'true';
     const forceIndirectUsage = process.env.ENDURANCE_DIRECT_USAGE === 'false';
@@ -87,17 +81,17 @@ class EnduranceApp {
       this.isDirectUsage = false;
     } else {
       const isInNodeModules = normalizedPath.includes('/node_modules/');
-      const isInEnduranceCore = normalizedPath.includes('@programisto/endurance') ||
-        normalizedPath.includes('@programisto/endurance');
+      const isInEnduranceCore = normalizedPath.includes('@programisto/endurance');
+
+      const isInMainProjectNodeModules = this.isInMainProjectNodeModules(normalizedPath);
 
       const isDirect = !isInNodeModules ||
         (isInNodeModules && isInEnduranceCore && this.isSymlinkOrSource()) ||
-        (nodeModulesCount > 1 && isInEnduranceCore);
+        (isInNodeModules && isInEnduranceCore && isInMainProjectNodeModules);
 
       this.isDirectUsage = isDirect;
     }
 
-    // Initialiser l'application Express dans tous les cas
     this.app.set('port', this.port);
     this.setupMiddlewares();
     this.setupCors();
@@ -111,7 +105,6 @@ class EnduranceApp {
   private setupMiddlewares() {
     const payloadLimit = process.env.REQUEST_PAYLOAD_LIMIT || '50mb';
 
-    // Middleware pour gérer différemment les requêtes multipart/form-data et JSON
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.headers['content-type']?.includes('multipart/form-data')) {
         next();
@@ -120,7 +113,6 @@ class EnduranceApp {
       }
     });
 
-    // On garde les autres middlewares
     this.app.use(express.urlencoded({ extended: false, limit: payloadLimit }));
     this.app.use(cookieParser());
     this.app.use(compression());
@@ -251,7 +243,6 @@ class EnduranceApp {
         try {
           const moduleEntries: { name: string; path: string }[] = [];
 
-          // Modules à la racine de node_modules
           const rootModules = fs.readdirSync(nodeModulesPath);
           for (const moduleName of rootModules) {
             const fullPath = path.join(nodeModulesPath, moduleName);
@@ -259,7 +250,6 @@ class EnduranceApp {
               moduleEntries.push({ name: moduleName, path: fullPath });
             }
 
-            // Modules scoped, ex: @xxx/edrm-*
             if (moduleName.startsWith('@') && isDirectory(fullPath)) {
               const scopedPackages = fs.readdirSync(fullPath);
               for (const pkg of scopedPackages) {
@@ -273,12 +263,9 @@ class EnduranceApp {
             }
           }
 
-          // Charger chaque module
           for (const moduleEntry of moduleEntries) {
             logger.info('Loading EDRM module:', moduleEntry.name);
             const distPath = path.join(moduleEntry.path, 'dist');
-
-            // Pour @xxx/edrm-abc → path.join(..., '@xxx', 'edrm-abc')
             const localModulePath = path.join(localModulesPath, ...moduleEntry.name.split('/'));
 
             if (isDirectory(distPath)) {
@@ -296,9 +283,8 @@ class EnduranceApp {
         }
       };
 
-      // Load the marketplace modules
       await loadMarketplaceModules();
-      // Load modules from the local modules folder
+
       let modulesFolder = path.join(process.cwd(), 'dist/modules');
 
       if (isDirectory(modulesFolder)) {
@@ -396,7 +382,6 @@ class EnduranceApp {
             }
             setupDistributedEmitter(conn.db);
 
-            // Ne démarrer le serveur que si le module est utilisé directement
             if (this.isDirectUsage) {
               this.startServer();
             }
@@ -414,7 +399,6 @@ class EnduranceApp {
           store: new session.MemoryStore()
         })
       );
-      // Ne démarrer le serveur que si le module est utilisé directement
       if (this.isDirectUsage) {
         this.startServer();
       }
@@ -438,14 +422,80 @@ class EnduranceApp {
     });
   }
 
-  // Méthode publique pour accéder à l'instance de multer
   public getUpload() {
     return this.upload;
   }
 
   /**
-   * Détecte si le module est un lien symbolique ou s'exécute depuis le code source
-   * Utile dans un contexte mono-repo avec des liens symboliques
+   * Checks if Endurance is loaded from the top-level project's node_modules
+   * and not from an EDRM module's nested node_modules.
+   *
+   * Start server (direct usage):
+   * - /project/node_modules/@programisto/endurance
+   * - /project-edrm/node_modules/@programisto/endurance
+   *
+   * Do NOT start server (indirect usage via EDRM dependency):
+   * - /project/node_modules/@programisto/edrm-xxx/node_modules/@programisto/endurance (scoped @programisto)
+   * - /project/node_modules/@org/edrm-xxx/node_modules/@programisto/endurance (scoped other org)
+   * - /project/node_modules/edrm-xxx/node_modules/@programisto/endurance (non-scoped, no org)
+   */
+  private isInMainProjectNodeModules(normalizedPath: string): boolean {
+    try {
+      const cwd = process.cwd().replace(/\\/g, '/');
+
+      // Check if Endurance is inside an EDRM module's node_modules (dependency, not top-level)
+      // This covers all cases: scoped (@org/edrm-xxx) and non-scoped (edrm-xxx)
+      // Examples:
+      // - /node_modules/@programisto/edrm-xxxx/node_modules/@programisto/endurance
+      // - /node_modules/@autreOrg/edrm-xxx/node_modules/@programisto/endurance
+      // - /node_modules/edrm-xxx/node_modules/@programisto/endurance
+      const nodeModulesIndex = normalizedPath.indexOf('/node_modules/');
+      if (nodeModulesIndex !== -1) {
+        const afterFirstNodeModules = normalizedPath.substring(nodeModulesIndex + '/node_modules/'.length);
+
+        // Check if there's an EDRM module pattern before @programisto/endurance
+        // Pattern: [scope?]edrm-xxx/node_modules/@programisto/endurance
+        const edrmPattern = /edrm-[^/]+\/node_modules\/@programisto\/endurance/;
+        if (edrmPattern.test(afterFirstNodeModules)) {
+          return false;
+        }
+      }
+
+      // Check if Endurance is directly in the project's node_modules (top level)
+      // Pattern: /path/to/project/node_modules/@programisto/endurance
+      const firstNodeModulesIndex = normalizedPath.indexOf('/node_modules/');
+      if (firstNodeModulesIndex !== -1) {
+        const pathAfterFirstNodeModules = normalizedPath.substring(firstNodeModulesIndex + '/node_modules/'.length);
+
+        // If directly after node_modules we find @programisto/endurance, it's top-level
+        if (pathAfterFirstNodeModules.startsWith('@programisto/endurance')) {
+          const pathBeforeNodeModules = normalizedPath.substring(0, firstNodeModulesIndex);
+          // Ensure the path before node_modules is not itself in node_modules
+          if (!pathBeforeNodeModules.includes('/node_modules/')) {
+            return true;
+          }
+        }
+      }
+
+      // Also check if we're in the current working directory's node_modules
+      const expectedPath = `${cwd}/node_modules/@programisto/endurance`;
+      if (normalizedPath.startsWith(expectedPath)) {
+        // Ensure cwd is not in node_modules (to avoid false positives)
+        if (!cwd.includes('/node_modules/')) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      logger.warn('Error checking main project node_modules:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Detects if the module is a symlink or running from source code.
+   * Useful in monorepo contexts with symlinks.
    */
   private isSymlinkOrSource(): boolean {
     try {
@@ -453,15 +503,12 @@ class EnduranceApp {
       const currentFilePath = fileURLToPath(import.meta.url);
       const packageJsonPath = path.join(path.dirname(currentFilePath), '..', '..', 'package.json');
 
-      // Vérifier si le package.json existe et contient des infos de développement
       if (fs.existsSync(packageJsonPath)) {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
-        // Si c'est un lien symbolique, le chemin sera différent
         const realPath = fs.realpathSync(currentFilePath);
         const isSymlink = realPath !== currentFilePath;
 
-        // Ou si on détecte qu'on est dans un contexte de développement
         const isDevContext = (packageJson.name === '@programisto/endurance' ||
           packageJson.name === '@programisto/endurance') &&
           (packageJson.scripts?.dev || packageJson.scripts?.build);
@@ -471,7 +518,6 @@ class EnduranceApp {
 
       return false;
     } catch (error) {
-      // En cas d'erreur, on considère que c'est un usage direct
       return true;
     }
   }

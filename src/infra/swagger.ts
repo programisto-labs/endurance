@@ -1,5 +1,6 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -56,7 +57,16 @@ class EnduranceSwagger {
   }
 
   public setupSwagger(app: any, swaggerSpec: any) {
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+    // Créer un endpoint pour servir le JSON de la spécification OpenAPI
+    app.get('/api-docs/swagger.json', (req: Request, res: Response) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(swaggerSpec);
+    });
+
+    // Configurer Swagger UI pour utiliser l'endpoint JSON au lieu de window.location.origin
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      swaggerUrl: '/api-docs/swagger.json'
+    }));
   }
 }
 export const enduranceSwagger = new EnduranceSwagger();

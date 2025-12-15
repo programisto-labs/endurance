@@ -331,7 +331,7 @@ class EnduranceApp {
 
       const enableSwagger = process.env.SWAGGER !== 'false';
       if (enableSwagger) {
-        const swaggerSpec = enduranceSwagger.generateSwaggerSpec(this.swaggerApiFiles);
+        const swaggerSpec = await enduranceSwagger.generateSwaggerSpec(this.swaggerApiFiles);
         await enduranceSwagger.setupSwagger(this.app, swaggerSpec);
       }
 

@@ -179,8 +179,8 @@ class EnduranceApp {
       const endsWith = (filePath: string, suffix: string): boolean => filePath.endsWith(suffix);
       const routesMap = new Map<string, Map<string, string>>();
 
-      const processFile = async (folderPath: string, file: string) => {
-        const filePath = path.join(folderPath, file);
+      const processFile = async (folderPath: string, file: string, actualFilePath?: string) => {
+        const filePath = actualFilePath || path.join(folderPath, file);
 
         if (isDirectory(filePath)) {
           await readModulesFolder(filePath, filePath);
@@ -206,6 +206,7 @@ class EnduranceApp {
             routesMap.set(basePath, new Map());
           }
           routesMap.get(basePath)!.set(version || 'default', filePath);
+          logger.debug(`Route ajoutée à Swagger: ${filePath} (basePath: ${basePath}, version: ${version || 'default'})`);
         }
       };
 
@@ -217,12 +218,20 @@ class EnduranceApp {
 
             try {
               if (isDirectory(filePath)) {
-                await readModulesFolder(filePath, overridePath);
+                const overrideSubPath = overridePath && overridePath !== ''
+                  ? path.join(overridePath, file)
+                  : '';
+                await readModulesFolder(filePath, overrideSubPath);
               } else {
-                if (overridePath && overridePath !== '' && fs.existsSync(path.join(overridePath, file))) {
-                  await processFile(overridePath, file);
+                const overrideFilePath = overridePath && overridePath !== ''
+                  ? path.join(overridePath, file)
+                  : null;
+                const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
+
+                if (hasOverride) {
+                  await processFile(overridePath, file, overrideFilePath);
                 } else {
-                  await processFile(folderPath, file);
+                  await processFile(folderPath, file, filePath);
                 }
               }
             } catch (err) {
@@ -331,6 +340,7 @@ class EnduranceApp {
 
       const enableSwagger = process.env.SWAGGER !== 'false';
       if (enableSwagger) {
+        logger.info(`📚 Génération de la documentation Swagger avec ${this.swaggerApiFiles.length} fichier(s) de routes`);
         const swaggerSpec = await enduranceSwagger.generateSwaggerSpec(this.swaggerApiFiles);
         await enduranceSwagger.setupSwagger(this.app, swaggerSpec);
       }

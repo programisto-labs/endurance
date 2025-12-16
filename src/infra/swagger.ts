@@ -21,6 +21,14 @@ class EnduranceSwagger {
     return `http://localhost:${port}`;
   }
 
+  private getSwaggerInfo() {
+    return {
+      title: process.env.SWAGGER_TITLE || 'Endurance API',
+      version: process.env.SWAGGER_VERSION || '1.0.0',
+      description: process.env.SWAGGER_DESCRIPTION || 'Description of the Endurance API'
+    };
+  }
+
   private defaultOptions = {
     swaggerDefinition: {
       openapi: '3.0.0',
@@ -64,6 +72,17 @@ class EnduranceSwagger {
     if (!options.swaggerDefinition) {
       options.swaggerDefinition = this.defaultOptions.swaggerDefinition;
     }
+
+    // S'assurer que info existe
+    if (!options.swaggerDefinition.info) {
+      options.swaggerDefinition.info = this.defaultOptions.swaggerDefinition.info;
+    }
+
+    // Mettre à jour les informations Swagger depuis les variables d'environnement
+    const swaggerInfo = this.getSwaggerInfo();
+    options.swaggerDefinition.info.title = swaggerInfo.title;
+    options.swaggerDefinition.info.version = swaggerInfo.version;
+    options.swaggerDefinition.info.description = swaggerInfo.description;
 
     // Mettre à jour l'URL du serveur
     if (options.swaggerDefinition.servers && options.swaggerDefinition.servers.length > 0) {

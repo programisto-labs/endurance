@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/programisto-labs/endurance/compare/v1.0.4...v1.0.5) (2025-12-15)
+
+
+### Bug Fixes
+
+* fix swagger ([0f9c552](https://github.com/programisto-labs/endurance/commit/0f9c552a98d76b153117dc4fc2f3398a2973db9b))
+
 ## [1.0.4](https://github.com/programisto-labs/endurance/compare/v1.0.3...v1.0.4) (2025-12-15)
 
 

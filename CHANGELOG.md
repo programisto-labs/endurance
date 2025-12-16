@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/programisto-labs/endurance/compare/v1.0.6...v1.0.7) (2025-12-16)
+
+
+### Bug Fixes
+
+* add edrm modules into swagger ([d350f7b](https://github.com/programisto-labs/endurance/commit/d350f7bfdef8cf7f1f0e69e3b76d4931f1734836))
+
 ## [1.0.6](https://github.com/programisto-labs/endurance/compare/v1.0.5...v1.0.6) (2025-12-16)
 
 

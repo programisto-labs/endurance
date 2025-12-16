@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/programisto-labs/endurance/compare/v1.0.7...v1.0.8) (2025-12-16)
+
+
+### Bug Fixes
+
+* load middleware before edrm-modules routes ([8f983e6](https://github.com/programisto-labs/endurance/commit/8f983e6ca46c0457d2a9dd789f2df29a2b5b5f00))
+
 ## [1.0.7](https://github.com/programisto-labs/endurance/compare/v1.0.6...v1.0.7) (2025-12-16)
 
 

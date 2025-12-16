@@ -210,34 +210,75 @@ class EnduranceApp {
         }
       };
 
-      const readModulesFolder = async (folderPath: string, overridePath: string) => {
+      const readModulesFolder = async (folderPath: string, overridePath: string, skipMiddlewares: boolean = false) => {
         try {
-          // eslint-disable-next-line security/detect-non-literal-fs-filename
-          fs.readdirSync(folderPath).forEach(async (file) => {
+          const files = fs.readdirSync(folderPath);
+          const directories: string[] = [];
+          const middlewareFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
+          const routerFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
+          const otherFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
+
+          // Séparer les fichiers par type
+          for (const file of files) {
             const filePath = path.join(folderPath, file);
 
-            try {
-              if (isDirectory(filePath)) {
-                const overrideSubPath = overridePath && overridePath !== ''
-                  ? path.join(overridePath, file)
-                  : '';
-                await readModulesFolder(filePath, overrideSubPath);
-              } else {
-                const overrideFilePath = overridePath && overridePath !== ''
-                  ? path.join(overridePath, file)
-                  : null;
-                const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
+            if (isDirectory(filePath)) {
+              directories.push(file);
+            } else {
+              const overrideFilePath = overridePath && overridePath !== ''
+                ? path.join(overridePath, file)
+                : null;
+              const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
+              const actualFilePath = hasOverride ? overrideFilePath : filePath;
+              const actualFolderPath = hasOverride ? overridePath : folderPath;
 
-                if (hasOverride) {
-                  await processFile(overridePath, file, overrideFilePath);
-                } else {
-                  await processFile(folderPath, file, filePath);
-                }
+              if (endsWith(file, '.middleware.js') && endsWith(actualFolderPath, 'middlewares')) {
+                middlewareFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
+              } else if (endsWith(file, '.router.js') && endsWith(actualFolderPath, 'routes')) {
+                routerFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
+              } else {
+                otherFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
               }
+            }
+          }
+
+          // 1. Charger d'abord tous les middlewares (sauf si on les a déjà chargés)
+          if (!skipMiddlewares) {
+            for (const { folderPath: fp, file, actualFilePath } of middlewareFiles) {
+              try {
+                await processFile(fp, file, actualFilePath);
+              } catch (err) {
+                logger.error(`Error processing middleware file ${file}:`, err);
+              }
+            }
+          }
+
+          // 2. Charger les autres fichiers (listeners, consumers, crons, etc.)
+          for (const { folderPath: fp, file, actualFilePath } of otherFiles) {
+            try {
+              await processFile(fp, file, actualFilePath);
             } catch (err) {
               logger.error(`Error processing file ${file}:`, err);
             }
-          });
+          }
+
+          // 3. Traiter les sous-dossiers récursivement
+          for (const dir of directories) {
+            const filePath = path.join(folderPath, dir);
+            const overrideSubPath = overridePath && overridePath !== ''
+              ? path.join(overridePath, dir)
+              : '';
+            await readModulesFolder(filePath, overrideSubPath, skipMiddlewares);
+          }
+
+          // 4. Enfin, enregistrer les routes (mais ne pas les charger encore)
+          for (const { folderPath: fp, file, actualFilePath } of routerFiles) {
+            try {
+              await processFile(fp, file, actualFilePath);
+            } catch (err) {
+              logger.error(`Error processing router file ${file}:`, err);
+            }
+          }
         } catch (err) {
           logger.error('Error reading directory:', err);
         }
@@ -250,13 +291,19 @@ class EnduranceApp {
         const isDirectory = (filePath: string) => fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
 
         try {
-          const moduleEntries: { name: string; path: string }[] = [];
+          const moduleEntries: { name: string; path: string; distPath?: string; basePath?: string }[] = [];
 
           const rootModules = fs.readdirSync(nodeModulesPath);
           for (const moduleName of rootModules) {
             const fullPath = path.join(nodeModulesPath, moduleName);
             if (moduleName.startsWith('edrm-') && isDirectory(fullPath)) {
-              moduleEntries.push({ name: moduleName, path: fullPath });
+              const distPath = path.join(fullPath, 'dist');
+              moduleEntries.push({
+                name: moduleName,
+                path: fullPath,
+                distPath: isDirectory(distPath) ? distPath : undefined,
+                basePath: isDirectory(fullPath) ? fullPath : undefined
+              });
             }
 
             if (moduleName.startsWith('@') && isDirectory(fullPath)) {
@@ -265,24 +312,68 @@ class EnduranceApp {
                 if (pkg.startsWith('edrm-')) {
                   const scopedPath = path.join(fullPath, pkg);
                   if (isDirectory(scopedPath)) {
-                    moduleEntries.push({ name: `${moduleName}/${pkg}`, path: scopedPath });
+                    const distPath = path.join(scopedPath, 'dist');
+                    moduleEntries.push({
+                      name: `${moduleName}/${pkg}`,
+                      path: scopedPath,
+                      distPath: isDirectory(distPath) ? distPath : undefined,
+                      basePath: isDirectory(scopedPath) ? scopedPath : undefined
+                    });
                   }
                 }
               }
             }
           }
 
+          // Phase 1 : Charger TOUS les middlewares de TOUS les modules EDRM
+          // Cela garantit que l'instance d'authentification est disponible avant l'instanciation des routes
           for (const moduleEntry of moduleEntries) {
-            logger.info('Loading EDRM module:', moduleEntry.name);
-            const distPath = path.join(moduleEntry.path, 'dist');
+            logger.info('Loading EDRM module middlewares:', moduleEntry.name);
             const localModulePath = path.join(localModulesPath, ...moduleEntry.name.split('/'));
+            const modulePath = moduleEntry.distPath || moduleEntry.basePath;
 
-            if (isDirectory(distPath)) {
-              logger.info('Loading from dist directory:', distPath);
-              await readModulesFolder(distPath, localModulePath);
-            } else if (isDirectory(moduleEntry.path)) {
-              logger.info('Loading from standard directory:', moduleEntry.path);
-              await readModulesFolder(moduleEntry.path, localModulePath);
+            if (modulePath) {
+              // Charger uniquement les middlewares dans cette phase
+              const loadMiddlewaresOnly = async (folderPath: string, overridePath: string) => {
+                try {
+                  const files = fs.readdirSync(folderPath);
+                  for (const file of files) {
+                    const filePath = path.join(folderPath, file);
+                    if (isDirectory(filePath)) {
+                      await loadMiddlewaresOnly(filePath, overridePath ? path.join(overridePath, file) : '');
+                    } else if (endsWith(file, '.middleware.js') && endsWith(folderPath, 'middlewares')) {
+                      const overrideFilePath = overridePath && overridePath !== ''
+                        ? path.join(overridePath, file)
+                        : null;
+                      const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
+                      const actualFilePath = hasOverride ? overrideFilePath : filePath;
+                      try {
+                        await import('file:///' + actualFilePath);
+                        logger.debug(`Loaded middleware: ${actualFilePath}`);
+                      } catch (err) {
+                        logger.error(`Error loading middleware ${file}:`, err);
+                      }
+                    }
+                  }
+                } catch (err) {
+                  // Ignorer les erreurs de lecture de dossier
+                }
+              };
+              await loadMiddlewaresOnly(modulePath, localModulePath);
+            }
+          }
+
+          // Phase 2 : Charger les routes et autres fichiers de tous les modules
+          // À ce stade, tous les middlewares sont déjà chargés, donc l'instance d'authentification est disponible
+          // On passe skipMiddlewares=true pour éviter de les recharger
+          for (const moduleEntry of moduleEntries) {
+            logger.info('Loading EDRM module routes:', moduleEntry.name);
+            const localModulePath = path.join(localModulesPath, ...moduleEntry.name.split('/'));
+            const modulePath = moduleEntry.distPath || moduleEntry.basePath;
+
+            if (modulePath) {
+              logger.info(`Loading from ${moduleEntry.distPath ? 'dist' : 'standard'} directory:`, modulePath);
+              await readModulesFolder(modulePath, localModulePath, true);
             } else {
               logger.warn(`Module ${moduleEntry.name} has no usable folder (dist or base).`);
             }

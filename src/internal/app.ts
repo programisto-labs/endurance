@@ -19,6 +19,7 @@ import { setupDistributedEmitter } from '../core/distributedEmitter.js';
 class EnduranceApp {
   public app: express.Application;
   private port: number | string;
+  private host: string;
   private swaggerApiFiles: string[] = [];
   private __dirname: string;
   private isDirectUsage: boolean = false;
@@ -29,6 +30,7 @@ class EnduranceApp {
     this.__dirname = path.dirname(__filename);
     this.app = express();
     this.port = process.env.SERVER_PORT || 3000;
+    this.host = process.env.HOST || '0.0.0.0';
 
     const storage = multer.diskStorage({
       destination: (req: Request, file: any, cb: (error: Error | null, destination: string) => void) => {
@@ -179,8 +181,8 @@ class EnduranceApp {
       const endsWith = (filePath: string, suffix: string): boolean => filePath.endsWith(suffix);
       const routesMap = new Map<string, Map<string, string>>();
 
-      const processFile = async (folderPath: string, file: string, actualFilePath?: string) => {
-        const filePath = actualFilePath || path.join(folderPath, file);
+      const processFile = async (folderPath: string, file: string) => {
+        const filePath = path.join(folderPath, file);
 
         if (isDirectory(filePath)) {
           await readModulesFolder(filePath, filePath);
@@ -206,79 +208,29 @@ class EnduranceApp {
             routesMap.set(basePath, new Map());
           }
           routesMap.get(basePath)!.set(version || 'default', filePath);
-          logger.debug(`Route ajoutée à Swagger: ${filePath} (basePath: ${basePath}, version: ${version || 'default'})`);
         }
       };
 
-      const readModulesFolder = async (folderPath: string, overridePath: string, skipMiddlewares: boolean = false) => {
+      const readModulesFolder = async (folderPath: string, overridePath: string) => {
         try {
-          const files = fs.readdirSync(folderPath);
-          const directories: string[] = [];
-          const middlewareFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
-          const routerFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
-          const otherFiles: { folderPath: string; file: string; actualFilePath?: string }[] = [];
-
-          // Séparer les fichiers par type
-          for (const file of files) {
+          // eslint-disable-next-line security/detect-non-literal-fs-filename
+          fs.readdirSync(folderPath).forEach(async (file) => {
             const filePath = path.join(folderPath, file);
 
-            if (isDirectory(filePath)) {
-              directories.push(file);
-            } else {
-              const overrideFilePath = overridePath && overridePath !== ''
-                ? path.join(overridePath, file)
-                : null;
-              const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
-              const actualFilePath = hasOverride ? overrideFilePath : filePath;
-              const actualFolderPath = hasOverride ? overridePath : folderPath;
-
-              if (endsWith(file, '.middleware.js') && endsWith(actualFolderPath, 'middlewares')) {
-                middlewareFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
-              } else if (endsWith(file, '.router.js') && endsWith(actualFolderPath, 'routes')) {
-                routerFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
-              } else {
-                otherFiles.push({ folderPath: actualFolderPath, file, actualFilePath });
-              }
-            }
-          }
-
-          // 1. Charger d'abord tous les middlewares (sauf si on les a déjà chargés)
-          if (!skipMiddlewares) {
-            for (const { folderPath: fp, file, actualFilePath } of middlewareFiles) {
-              try {
-                await processFile(fp, file, actualFilePath);
-              } catch (err) {
-                logger.error(`Error processing middleware file ${file}:`, err);
-              }
-            }
-          }
-
-          // 2. Charger les autres fichiers (listeners, consumers, crons, etc.)
-          for (const { folderPath: fp, file, actualFilePath } of otherFiles) {
             try {
-              await processFile(fp, file, actualFilePath);
+              if (isDirectory(filePath)) {
+                await readModulesFolder(filePath, overridePath);
+              } else {
+                if (overridePath && overridePath !== '' && fs.existsSync(path.join(overridePath, file))) {
+                  await processFile(overridePath, file);
+                } else {
+                  await processFile(folderPath, file);
+                }
+              }
             } catch (err) {
               logger.error(`Error processing file ${file}:`, err);
             }
-          }
-
-          // 3. Traiter les sous-dossiers récursivement
-          for (const dir of directories) {
-            const filePath = path.join(folderPath, dir);
-            const overrideSubPath = overridePath && overridePath !== ''
-              ? path.join(overridePath, dir)
-              : '';
-            await readModulesFolder(filePath, overrideSubPath, skipMiddlewares);
-          }
-
-          // 4. Enfin, enregistrer les routes (mais ne pas les charger encore)
-          for (const { folderPath: fp, file, actualFilePath } of routerFiles) {
-            try {
-              await processFile(fp, file, actualFilePath);
-            } catch (err) {
-              logger.error(`Error processing router file ${file}:`, err);
-            }
-          }
+          });
         } catch (err) {
           logger.error('Error reading directory:', err);
         }
@@ -291,19 +243,13 @@ class EnduranceApp {
         const isDirectory = (filePath: string) => fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
 
         try {
-          const moduleEntries: { name: string; path: string; distPath?: string; basePath?: string }[] = [];
+          const moduleEntries: { name: string; path: string }[] = [];
 
           const rootModules = fs.readdirSync(nodeModulesPath);
           for (const moduleName of rootModules) {
             const fullPath = path.join(nodeModulesPath, moduleName);
             if (moduleName.startsWith('edrm-') && isDirectory(fullPath)) {
-              const distPath = path.join(fullPath, 'dist');
-              moduleEntries.push({
-                name: moduleName,
-                path: fullPath,
-                distPath: isDirectory(distPath) ? distPath : undefined,
-                basePath: isDirectory(fullPath) ? fullPath : undefined
-              });
+              moduleEntries.push({ name: moduleName, path: fullPath });
             }
 
             if (moduleName.startsWith('@') && isDirectory(fullPath)) {
@@ -312,68 +258,24 @@ class EnduranceApp {
                 if (pkg.startsWith('edrm-')) {
                   const scopedPath = path.join(fullPath, pkg);
                   if (isDirectory(scopedPath)) {
-                    const distPath = path.join(scopedPath, 'dist');
-                    moduleEntries.push({
-                      name: `${moduleName}/${pkg}`,
-                      path: scopedPath,
-                      distPath: isDirectory(distPath) ? distPath : undefined,
-                      basePath: isDirectory(scopedPath) ? scopedPath : undefined
-                    });
+                    moduleEntries.push({ name: `${moduleName}/${pkg}`, path: scopedPath });
                   }
                 }
               }
             }
           }
 
-          // Phase 1 : Charger TOUS les middlewares de TOUS les modules EDRM
-          // Cela garantit que l'instance d'authentification est disponible avant l'instanciation des routes
           for (const moduleEntry of moduleEntries) {
-            logger.info('Loading EDRM module middlewares:', moduleEntry.name);
+            logger.info('Loading EDRM module:', moduleEntry.name);
+            const distPath = path.join(moduleEntry.path, 'dist');
             const localModulePath = path.join(localModulesPath, ...moduleEntry.name.split('/'));
-            const modulePath = moduleEntry.distPath || moduleEntry.basePath;
 
-            if (modulePath) {
-              // Charger uniquement les middlewares dans cette phase
-              const loadMiddlewaresOnly = async (folderPath: string, overridePath: string) => {
-                try {
-                  const files = fs.readdirSync(folderPath);
-                  for (const file of files) {
-                    const filePath = path.join(folderPath, file);
-                    if (isDirectory(filePath)) {
-                      await loadMiddlewaresOnly(filePath, overridePath ? path.join(overridePath, file) : '');
-                    } else if (endsWith(file, '.middleware.js') && endsWith(folderPath, 'middlewares')) {
-                      const overrideFilePath = overridePath && overridePath !== ''
-                        ? path.join(overridePath, file)
-                        : null;
-                      const hasOverride = overrideFilePath && fs.existsSync(overrideFilePath);
-                      const actualFilePath = hasOverride ? overrideFilePath : filePath;
-                      try {
-                        await import('file:///' + actualFilePath);
-                        logger.debug(`Loaded middleware: ${actualFilePath}`);
-                      } catch (err) {
-                        logger.error(`Error loading middleware ${file}:`, err);
-                      }
-                    }
-                  }
-                } catch (err) {
-                  // Ignorer les erreurs de lecture de dossier
-                }
-              };
-              await loadMiddlewaresOnly(modulePath, localModulePath);
-            }
-          }
-
-          // Phase 2 : Charger les routes et autres fichiers de tous les modules
-          // À ce stade, tous les middlewares sont déjà chargés, donc l'instance d'authentification est disponible
-          // On passe skipMiddlewares=true pour éviter de les recharger
-          for (const moduleEntry of moduleEntries) {
-            logger.info('Loading EDRM module routes:', moduleEntry.name);
-            const localModulePath = path.join(localModulesPath, ...moduleEntry.name.split('/'));
-            const modulePath = moduleEntry.distPath || moduleEntry.basePath;
-
-            if (modulePath) {
-              logger.info(`Loading from ${moduleEntry.distPath ? 'dist' : 'standard'} directory:`, modulePath);
-              await readModulesFolder(modulePath, localModulePath, true);
+            if (isDirectory(distPath)) {
+              logger.info('Loading from dist directory:', distPath);
+              await readModulesFolder(distPath, localModulePath);
+            } else if (isDirectory(moduleEntry.path)) {
+              logger.info('Loading from standard directory:', moduleEntry.path);
+              await readModulesFolder(moduleEntry.path, localModulePath);
             } else {
               logger.warn(`Module ${moduleEntry.name} has no usable folder (dist or base).`);
             }
@@ -431,8 +333,7 @@ class EnduranceApp {
 
       const enableSwagger = process.env.SWAGGER !== 'false';
       if (enableSwagger) {
-        logger.info(`📚 Génération de la documentation Swagger avec ${this.swaggerApiFiles.length} fichier(s) de routes`);
-        const swaggerSpec = await enduranceSwagger.generateSwaggerSpec(this.swaggerApiFiles);
+        const swaggerSpec = enduranceSwagger.generateSwaggerSpec(this.swaggerApiFiles);
         await enduranceSwagger.setupSwagger(this.app, swaggerSpec);
       }
 
@@ -517,8 +418,9 @@ class EnduranceApp {
                                                         
                                                         
     `);
-    this.app.listen(this.port, () => {
-      logger.info(`Server listening on port ${this.port}`);
+    const port: number = typeof this.port === 'string' ? parseInt(this.port, 10) : this.port;
+    this.app.listen(port, this.host, () => {
+      logger.info(`Server listening on ${this.host}:${port}`);
       enduranceEmitter.emit(enduranceEventTypes.APP_STARTED);
     });
   }

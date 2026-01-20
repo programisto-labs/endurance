@@ -63,8 +63,7 @@ abstract class EnduranceRouter<T = any> {
 
   constructor(authMiddleware?: EnduranceAuthMiddleware, upload?: multer.Multer) {
     this.router = express.Router();
-    // Utiliser l'instance passée ou récupérer l'instance globale
-    this.authMiddleware = authMiddleware || EnduranceAuthMiddleware.getInstance();
+    this.authMiddleware = authMiddleware;
     this.upload = upload!;
     this.setupRoutes();
   }
@@ -80,25 +79,22 @@ abstract class EnduranceRouter<T = any> {
 
     const middlewares: Array<RequestHandler> = [];
 
-    // Utiliser l'instance passée au constructeur, ou récupérer l'instance globale
-    const authMiddleware = this.authMiddleware || EnduranceAuthMiddleware.getInstance();
-
-    if (!authMiddleware) {
+    if (!this.authMiddleware) {
       return middlewares;
     }
 
     if (requireAuth) {
-      middlewares.push(authMiddleware.auth.isAuthenticated());
+      middlewares.push(this.authMiddleware!.auth.isAuthenticated());
     }
 
     if (permissions.length > 0) {
       middlewares.push((req: Request, res: Response, next: NextFunction) => {
-        return authMiddleware.accessControl.checkUserPermissions(permissions, req, res, next);
+        return this.authMiddleware!.accessControl.checkUserPermissions(permissions, req, res, next);
       });
     }
 
     if (checkOwnership) {
-      middlewares.push(authMiddleware.accessControl.restrictToOwner);
+      middlewares.push(this.authMiddleware.accessControl.restrictToOwner);
     }
 
     return middlewares;
@@ -380,10 +376,8 @@ abstract class EnduranceRouter<T = any> {
     modelName: string,
     securityOptions: SecurityOptions = {}
   ) {
-    // Utiliser l'instance locale ou globale
-    const authMiddleware = this.authMiddleware || EnduranceAuthMiddleware.getInstance();
-    if (!authMiddleware) {
-      throw new Error('authMiddleware is required for autoWireSecure. Set it via EnduranceAuthMiddleware.setInstance() or pass it to the router constructor.');
+    if (!this.authMiddleware) {
+      throw new Error('authMiddleware is required for autoWireSecure');
     }
 
     // GET /
@@ -393,8 +387,8 @@ abstract class EnduranceRouter<T = any> {
         const items = await Model.find();
         res.json(items);
       } catch (err) {
-        if (authMiddleware) {
-          authMiddleware.auth.handleAuthError(err, req, res, () => { });
+        if (this.authMiddleware) {
+          this.authMiddleware.auth.handleAuthError(err, req, res, () => { });
         } else {
           res.status(500).json({ message: 'Internal server error' });
         }
@@ -412,8 +406,8 @@ abstract class EnduranceRouter<T = any> {
         }
         res.json(item);
       } catch (err) {
-        if (authMiddleware) {
-          authMiddleware.auth.handleAuthError(err, req, res, () => { });
+        if (this.authMiddleware) {
+          this.authMiddleware.auth.handleAuthError(err, req, res, () => { });
         } else {
           res.status(500).json({ message: 'Internal server error' });
         }
@@ -428,8 +422,8 @@ abstract class EnduranceRouter<T = any> {
         const savedItem = await item.save();
         res.status(201).json(savedItem);
       } catch (err) {
-        if (authMiddleware) {
-          authMiddleware.auth.handleAuthError(err, req, res, () => { });
+        if (this.authMiddleware) {
+          this.authMiddleware.auth.handleAuthError(err, req, res, () => { });
         } else {
           res.status(500).json({ message: 'Internal server error' });
         }
@@ -449,8 +443,8 @@ abstract class EnduranceRouter<T = any> {
         const updatedItem = await item.save();
         res.json(updatedItem);
       } catch (err) {
-        if (authMiddleware) {
-          authMiddleware.auth.handleAuthError(err, req, res, () => { });
+        if (this.authMiddleware) {
+          this.authMiddleware.auth.handleAuthError(err, req, res, () => { });
         } else {
           res.status(500).json({ message: 'Internal server error' });
         }
@@ -469,8 +463,8 @@ abstract class EnduranceRouter<T = any> {
         await item.deleteOne();
         res.json({ message: `${modelName} deleted successfully` });
       } catch (err) {
-        if (authMiddleware) {
-          authMiddleware.auth.handleAuthError(err, req, res, () => { });
+        if (this.authMiddleware) {
+          this.authMiddleware.auth.handleAuthError(err, req, res, () => { });
         } else {
           res.status(500).json({ message: 'Internal server error' });
         }

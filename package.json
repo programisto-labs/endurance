@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "@typegoose/typegoose": "^12.13.0",
+    "@typegoose/typegoose": "^12.20.0",
     "amqplib": "^0.10.5",
     "commander": "^12.1.0",
     "compression": "^1.7.4",

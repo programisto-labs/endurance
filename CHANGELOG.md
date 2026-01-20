@@ -1,3 +1,12 @@
+## [1.0.9](https://github.com/programisto-labs/endurance/compare/v1.0.8...v1.0.9) (2026-01-20)
+
+
+### Bug Fixes
+
+* add host ([8a4e56e](https://github.com/programisto-labs/endurance/commit/8a4e56e9908be79b86a97c4e297f46687f5bb663))
+* endurance ([d0f58a4](https://github.com/programisto-labs/endurance/commit/d0f58a4bf9bc17ea2d7f0e347b6f3f6f1fae6fde))
+* upgrade typescript ([1622081](https://github.com/programisto-labs/endurance/commit/16220815eb13d2d2c56527159072e851e673f1ea))
+
 ## [1.0.8](https://github.com/programisto-labs/endurance/compare/v1.0.7...v1.0.8) (2025-12-16)
 
 

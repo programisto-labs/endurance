@@ -58,7 +58,7 @@
     "@jest/globals": "^30.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "semantic-release": "^24.0.0",
+    "semantic-release": "^25.0.3",
     "@types/amqplib": "^0.10.7",
     "@types/compression": "^1.7.5",
     "@types/connect-mongodb-session": "^2.4.7",

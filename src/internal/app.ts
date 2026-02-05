@@ -131,8 +131,7 @@ class EnduranceApp {
             callback(new Error('CORS unauthorized')); // Rejected
           }
         },
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         credentials: true
       };
       this.app.use(cors(corsOptions));

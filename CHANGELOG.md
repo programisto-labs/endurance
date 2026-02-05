@@ -1,3 +1,10 @@
+## [1.0.10](https://github.com/programisto-labs/endurance/compare/v1.0.9...v1.0.10) (2026-02-05)
+
+
+### Bug Fixes
+
+* add patch and allow custom headers ([efbb9a0](https://github.com/programisto-labs/endurance/commit/efbb9a0b89dcc54b59d6e7a873fde07868280ffc))
+
 ## [1.0.9](https://github.com/programisto-labs/endurance/compare/v1.0.8...v1.0.9) (2026-01-20)
 
 

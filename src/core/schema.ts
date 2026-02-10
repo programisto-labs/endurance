@@ -24,6 +24,14 @@ export const EnduranceModelType = {
     // Passer explicitement les données du document
     this.emitEvent('preSave', this);
 })
+@EnduranceModelType.post('save', function (this: any) {
+    this.emitEvent('postSave', this);
+})
+@EnduranceModelType.post('deleteOne', function (this: any) {
+    const model = (this.constructor as any).getModel?.();
+    const collectionName = model?.collection?.name ?? undefined;
+    this.emitEvent('postDeleteOne', { id: this._id, collectionName });
+})
 @EnduranceModelType.modelOptions({
     schemaOptions: {
         timestamps: true,

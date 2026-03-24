@@ -3,6 +3,7 @@ import path from 'path';
 import pino from 'pino';
 import pinoCaller from 'pino-caller';
 import rfs from 'rotating-file-stream';
+import { createPostHogPinoLogMethodHook } from '../infra/logging/adapters/posthog/index.js';
 
 // ✅ Create logs dir
 const logDirectory = path.resolve(process.cwd(), 'logs');
@@ -72,10 +73,15 @@ const transport = pino.transport({
     targets
 });
 
+const postHogLogMethodHook = createPostHogPinoLogMethodHook();
+
 // ✅ Création du logger avec transport multi-sortie
 const baseLogger = pino(
     {
-        level: process.env.LOG_LEVEL || 'info'
+        level: process.env.LOG_LEVEL || 'info',
+        ...(postHogLogMethodHook !== undefined
+            ? { hooks: { logMethod: postHogLogMethodHook } }
+            : {})
     },
     transport
 );

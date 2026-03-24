@@ -104,10 +104,34 @@ class EnduranceApp {
     });
   }
 
+  /**
+   * Path fragments (matched against req.originalUrl) for which POST bodies must stay raw bytes
+   * (e.g. Stripe webhooks: signature verification). Configure via ENDURANCE_RAW_JSON_BODY_PATH_INCLUDES,
+   * comma-separated (e.g. `/stripe/webhook`). Empty / unset = no routes use raw JSON body.
+   */
+  private getRawJsonBodyPathIncludes(): string[] {
+    const raw = process.env.ENDURANCE_RAW_JSON_BODY_PATH_INCLUDES;
+    if (!raw || !String(raw).trim()) return [];
+    return String(raw)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  private requestNeedsRawJsonBody(req: Request): boolean {
+    if (req.method !== 'POST') return false;
+    const url = String(req.originalUrl || req.url || '');
+    const fragments = this.getRawJsonBodyPathIncludes();
+    return fragments.some((f) => url.includes(f));
+  }
+
   private setupMiddlewares() {
     const payloadLimit = process.env.REQUEST_PAYLOAD_LIMIT || '50mb';
 
     this.app.use((req: Request, res: Response, next: NextFunction) => {
+      if (this.requestNeedsRawJsonBody(req)) {
+        return express.raw({ type: 'application/json', limit: payloadLimit })(req, res, next);
+      }
       if (req.headers['content-type']?.includes('multipart/form-data')) {
         next();
       } else {
@@ -152,8 +176,12 @@ class EnduranceApp {
     const loadRoutes = async (basePath: string, filePath: string, version: string | null) => {
       try {
         const { default: router } = await import('file:///' + filePath);
+        if (router == null || typeof (router as { getRouter?: unknown }).getRouter !== 'function') {
+          logger.error(`❌ Router module has no valid default export (getRouter): ${filePath}`);
+          return;
+        }
         const versionedPath = version ? `/v${version}${basePath}` : basePath;
-        this.app.use(versionedPath, router.getRouter());
+        this.app.use(versionedPath, (router as { getRouter: () => express.Router }).getRouter());
         this.swaggerApiFiles.push(filePath);
       } catch (err) {
         logger.error(`❌ Error loading routes from ${filePath}:`);

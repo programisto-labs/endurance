@@ -12,6 +12,45 @@ npm install endurance-core
 
 Import and initialize only the components you need. The library is modular and works well with Express, Mongoose/Typegoose, and event-driven architectures.
 
+## HTTP / Express body parsing
+
+By default, non-multipart requests use `express.json()`. Some providers (e.g. **Stripe webhooks**) require verifying the **raw** request body; JSON parsing breaks signature checks.
+
+Set a comma-separated list of path **substrings** that must receive a raw JSON body for `POST` requests:
+
+```bash
+ENDURANCE_RAW_JSON_BODY_PATH_INCLUDES=/stripe/webhook
+```
+
+Example with multiple routes:
+
+```bash
+ENDURANCE_RAW_JSON_BODY_PATH_INCLUDES=/stripe/webhook,/other/hmac-endpoint
+```
+
+If unset or empty, every request continues to use `express.json()` (backward compatible). The raw parser uses the same size limit as `REQUEST_PAYLOAD_LIMIT` (default `50mb`).
+
+## PostHog logs (optional)
+
+When enabled, the built-in Pino logger forwards log lines to [PostHog Logs](https://posthog.com/docs/logs) using OpenTelemetry OTLP over HTTP. No code changes are required beyond environment variables. The integration is implemented as a `PostHogLogsAdapter` under `src/infra/logging/adapters/posthog/` (port/adapter pattern so `core/logger` stays vendor-agnostic).
+
+Set all of the following to activate:
+
+```bash
+POSTHOG_LOGS_ENABLED=true
+POSTHOG_API_KEY=phc_your_project_api_key
+```
+
+Optional:
+
+| Variable | Description |
+|----------|-------------|
+| `POSTHOG_HOST` | Ingestion origin (default `https://us.i.posthog.com`). Use `https://eu.i.posthog.com` for the EU cloud, or your self-hosted URL without a trailing slash. |
+| `POSTHOG_LOGS_SERVICE_NAME` | `service.name` on exported logs (default `endurance`, or `npm_package_name` when set). |
+| `POSTHOG_LOGS_MIN_LEVEL` | Minimum Pino level **number** sent to PostHog (e.g. `30` for info). If unset, the threshold matches `LOG_LEVEL` (same names as Pino: `trace`, `debug`, `info`, `warn`, `error`, `fatal`). |
+
+Use the **project API key** (`phc_…`), not a personal API key (`phx_…`).
+
 ## Usage Examples
 
 ### Authentication Middleware

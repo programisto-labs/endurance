@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/programisto-labs/endurance/compare/v1.1.1...v1.1.2) (2026-07-28)
+
+
+### Bug Fixes
+
+* use port env var ([2a80acd](https://github.com/programisto-labs/endurance/commit/2a80acdb91f78732f83217d4356bceac1bfc178c))
+
 ## [1.1.1](https://github.com/programisto-labs/endurance/compare/v1.1.0...v1.1.1) (2026-03-24)
 
 

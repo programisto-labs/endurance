@@ -57,7 +57,7 @@ class EnduranceSwagger {
     if (fs.existsSync(swaggerConfigPath)) {
       try {
         const swaggerConfig = await import('file:///' + swaggerConfigPath, {
-          assert: { type: 'json' }
+          with: { type: 'json' }
         });
         options = swaggerConfig.default || options;
       } catch (error) {

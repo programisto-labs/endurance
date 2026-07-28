@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import pino from 'pino';
 import pinoCaller from 'pino-caller';
-import rfs from 'rotating-file-stream';
+import { createStream } from 'rotating-file-stream';
 import { createPostHogPinoLogMethodHook } from '../infra/logging/adapters/posthog/index.js';
 
 // ✅ Create logs dir
@@ -242,7 +242,7 @@ console.debug = (...args) => {
 };
 
 // Morgan stream
-const accessLogStream = rfs.createStream('access.log', {
+const accessLogStream = createStream('access.log', {
     interval: '1d',
     path: logDirectory
 });

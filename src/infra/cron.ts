@@ -1,7 +1,6 @@
 import { enduranceEmitter } from '../core/emitter.js';
 import logger from '../core/logger.js';
-import pkg from 'node-cron';
-const { schedule, validate } = pkg;
+import { schedule, validate } from 'node-cron';
 
 interface ScheduledTask {
   stop: () => void;

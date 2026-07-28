@@ -13,7 +13,7 @@ const config: Config = {
         useESM: true,
         tsconfig: {
           module: 'ESNext',
-          moduleResolution: 'node',
+          moduleResolution: 'bundler',
           strict: true,
           skipLibCheck: true,
           noEmit: true,

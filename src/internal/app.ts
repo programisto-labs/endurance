@@ -29,7 +29,7 @@ class EnduranceApp {
     const __filename = fileURLToPath(import.meta.url);
     this.__dirname = path.dirname(__filename);
     this.app = express();
-    this.port = process.env.SERVER_PORT || 3000;
+    this.port = process.env.PORT || process.env.SERVER_PORT || 3000;
     this.host = process.env.HOST || '0.0.0.0';
 
     const storage = multer.diskStorage({

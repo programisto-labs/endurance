@@ -39,4 +39,13 @@ declare module 'endurance-core' {
     export { enduranceListener } from './core/listener.js';
 
     export { enduranceNotificationManager } from './core/notification.js';
+
+    export {
+        EnduranceSearchProvider,
+        EnduranceSearchMiddleware,
+        type SearchOptions,
+        type SearchResult,
+        type SearchResultHit,
+        type SearchSortItem
+    } from './core/search.js';
 }

@@ -1,3 +1,17 @@
+## [1.1.1](https://github.com/programisto-labs/endurance/compare/v1.1.0...v1.1.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* add posthog logs adapter ([8635d1d](https://github.com/programisto-labs/endurance/commit/8635d1d5aa70841c3ba24529ddc10ecb1750640d))
+
+# [1.1.0](https://github.com/programisto-labs/endurance/compare/v1.0.10...v1.1.0) (2026-02-10)
+
+
+### Features
+
+* add search middleware ([049c550](https://github.com/programisto-labs/endurance/commit/049c5506742491851cf1be772186184ad5e61b29))
+
 ## [1.0.10](https://github.com/programisto-labs/endurance/compare/v1.0.9...v1.0.10) (2026-02-05)
 
 

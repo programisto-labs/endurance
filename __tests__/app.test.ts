@@ -21,7 +21,7 @@ describe('Test Express App', () => {
   });
 
   it('should start the server and listen on the specified port', async () => {
-    const port = process.env.SERVER_PORT || 3000;
+    const port = process.env.PORT || process.env.SERVER_PORT || 3000;
     const server = app.listen(port, () => {
       const address = server.address();
       if (address && typeof address !== 'string') {

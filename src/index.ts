@@ -31,3 +31,11 @@ export { enduranceNotificationManager } from './core/notification.js';
 export { enduranceCron } from './infra/cron.js';
 export { enduranceDatabase } from './infra/database.js';
 export { enduranceSwagger } from './infra/swagger.js';
+export {
+  EnduranceSearchProvider,
+  EnduranceSearchMiddleware,
+  type SearchOptions,
+  type SearchResult,
+  type SearchResultHit,
+  type SearchSortItem
+} from './core/search.js';

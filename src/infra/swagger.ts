@@ -16,8 +16,8 @@ class EnduranceSwagger {
       return process.env.SWAGGER_SERVER_URL;
     }
 
-    // Priorité 2 : Construire l'URL à partir du port (SERVER_PORT ou PORT)
-    const port = process.env.SERVER_PORT || process.env.PORT || '3000';
+    // Priorité 2 : Construire l'URL à partir du port (PORT, puis SERVER_PORT)
+    const port = process.env.PORT || process.env.SERVER_PORT || '3000';
     return `http://localhost:${port}`;
   }
 
